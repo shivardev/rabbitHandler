@@ -9,9 +9,46 @@ const RABBITMQ_VHOST = "/"; // Virtual host (usually '/')
 const RABBITMQ_USER = "guest"; // Replace with your username
 const RABBITMQ_PASSWORD = "guest"; // Replace with your password
 const QUEUE_NAME = "job"; // Name of the queue to use
-
 const app = express();
-app.use(cors());
+// Specify the allowed origins
+const allowedOrigins = [
+  "https://rabbit.blazingbane.com",
+  "http://192.168.1.32:5000",
+  "http://192.168.1.6:5000",
+  "http://192.168.1.3:5000",
+];
+
+app.use(express.json());
+app.set('trust proxy', true);
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (
+        !origin ||
+        allowedOrigins.includes(origin) ||
+        origin.startsWith("chrome-extension")
+      ) {
+        console.log("Valid cors");
+        callback(null, true);
+      } else {
+        console.log(origin);
+        callback(new Error("Not allowed by CORS"));
+        app.use((req: Request, res: Response) => {
+          res.status(404).send("Wrong URL");
+        });
+
+        app.use(
+          (err: Error, req: Request, res: Response) => {
+            console.error(err.stack);
+            res.status(500).json({ error: "Something went wrong!" });
+          }
+        );
+      }
+    },
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    credentials: true,
+  })
+);
 app.use(bodyParser.json());
 
 app.get("/", (req: Request, res: Response) => {
