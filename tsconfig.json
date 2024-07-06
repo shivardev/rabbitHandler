@@ -16,8 +16,6 @@
     "include": [
         "src/**/*.ts",
         "../dist",
-        "src/Misc/workers/Cloudwrite.ts",
-        "src/Misc/workers/Cloudwrite.js"
     ],
     "exclude": [
         "node_modules"
