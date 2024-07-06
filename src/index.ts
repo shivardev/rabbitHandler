@@ -22,29 +22,7 @@ app.use(express.json());
 app.set('trust proxy', true);
 app.use(
   cors({
-    origin: function (origin, callback) {
-      if (
-        !origin ||
-        allowedOrigins.includes(origin) ||
-        origin.startsWith("chrome-extension")
-      ) {
-        console.log("Valid cors");
-        callback(null, true);
-      } else {
-        console.log(origin);
-        callback(new Error("Not allowed by CORS"));
-        app.use((req: Request, res: Response) => {
-          res.status(404).send("Wrong URL");
-        });
-
-        app.use(
-          (err: Error, req: Request, res: Response) => {
-            console.error(err.stack);
-            res.status(500).json({ error: "Something went wrong!" });
-          }
-        );
-      }
-    },
+    origin: "*",
     methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
     credentials: true,
   })
