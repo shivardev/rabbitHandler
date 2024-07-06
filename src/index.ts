@@ -20,6 +20,7 @@ app.get("/", (req: Request, res: Response) => {
 
 app.post("/add_msg", (req: Request, res: Response) => {
   const message: string = req.body.message;
+  console.log(message);
   if (!message) {
     return res.status(400).json({ error: "Missing message in request body" });
   }
