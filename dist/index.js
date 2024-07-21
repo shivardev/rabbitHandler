@@ -17,11 +17,17 @@ const body_parser_1 = __importDefault(require("body-parser"));
 const cors_1 = __importDefault(require("cors"));
 const callback_api_1 = __importDefault(require("amqplib/callback_api"));
 const axios_1 = __importDefault(require("axios"));
-const RABBITMQ_HOST = "192.168.1.3"; // Replace with your RabbitMQ host
-const RABBITMQ_PORT = 5672; // Default RabbitMQ port
-const RABBITMQ_VHOST = "/"; // Virtual host (usually '/')
-const RABBITMQ_USER = "guest"; // Replace with your username
-const RABBITMQ_PASSWORD = "guest"; // Replace with your password
+const environments_1 = require("./environments");
+const ENV = process.env.NODE_ENV || 'prod';
+console.log(ENV);
+const enviromentVales = (0, environments_1.getEnvirontment)(ENV);
+console.log(enviromentVales);
+const RABBITMQ_USER = enviromentVales.RABBITMQ_USER;
+const RABBITMQ_PASSWORD = enviromentVales.RABBITMQ_PASSWORD;
+const RABBITMQ_HOST = enviromentVales.RABBITMQ_HOST;
+const RABBITMQ_PORT = enviromentVales.RABBITMQ_PORT;
+const RABBITMQ_VHOST = enviromentVales.RABBITMQ_VHOST;
+const RABBITMQ_MANAGEMENT_PORT = enviromentVales.RABBITMQ_MANAGEMENT_PORT;
 const app = (0, express_1.default)();
 // Specify the allowed origins
 const allowedOrigins = [
@@ -41,7 +47,7 @@ app.use(body_parser_1.default.json());
 function getQueues() {
     return __awaiter(this, void 0, void 0, function* () {
         try {
-            const response = yield axios_1.default.get("http://192.168.1.3:15672/api/queues", {
+            const response = yield axios_1.default.get(`http://${RABBITMQ_HOST}:15672/api/queues`, {
                 auth: {
                     username: "guest", // Replace with your RabbitMQ username
                     password: "guest", // Replace with your RabbitMQ password

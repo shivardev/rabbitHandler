@@ -3,11 +3,19 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import amqp from "amqplib/callback_api";
 import axios from "axios";
-const RABBITMQ_HOST = "192.168.1.3"; // Replace with your RabbitMQ host
-const RABBITMQ_PORT = 5672; // Default RabbitMQ port
-const RABBITMQ_VHOST = "/"; // Virtual host (usually '/')
-const RABBITMQ_USER = "guest"; // Replace with your username
-const RABBITMQ_PASSWORD = "guest"; // Replace with your password
+import { getEnvirontment } from "./environments";
+
+
+const ENV = process.env.NODE_ENV || 'prod';
+console.log(ENV);
+const enviromentVales = getEnvirontment(ENV);
+console.log(enviromentVales);
+const RABBITMQ_USER = enviromentVales.RABBITMQ_USER;
+const RABBITMQ_PASSWORD = enviromentVales.RABBITMQ_PASSWORD;
+const RABBITMQ_HOST = enviromentVales.RABBITMQ_HOST;
+const RABBITMQ_PORT = enviromentVales.RABBITMQ_PORT;
+const RABBITMQ_VHOST = enviromentVales.RABBITMQ_VHOST;
+const RABBITMQ_MANAGEMENT_PORT = enviromentVales.RABBITMQ_MANAGEMENT_PORT;
 const app = express();
 // Specify the allowed origins
 const allowedOrigins = [
@@ -29,7 +37,7 @@ app.use(
 app.use(bodyParser.json());
 async function getQueues() {
   try {
-    const response = await axios.get("http://192.168.1.3:15672/api/queues", {
+    const response = await axios.get(`http://${RABBITMQ_HOST}:15672/api/queues`, {
       auth: {
         username: "guest", // Replace with your RabbitMQ username
         password: "guest", // Replace with your RabbitMQ password
