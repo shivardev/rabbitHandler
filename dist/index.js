@@ -1,4 +1,13 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -7,6 +16,7 @@ const express_1 = __importDefault(require("express"));
 const body_parser_1 = __importDefault(require("body-parser"));
 const cors_1 = __importDefault(require("cors"));
 const callback_api_1 = __importDefault(require("amqplib/callback_api"));
+const axios_1 = __importDefault(require("axios"));
 const RABBITMQ_HOST = "192.168.1.3"; // Replace with your RabbitMQ host
 const RABBITMQ_PORT = 5672; // Default RabbitMQ port
 const RABBITMQ_VHOST = "/"; // Virtual host (usually '/')
@@ -28,43 +38,81 @@ app.use((0, cors_1.default)({
     credentials: true,
 }));
 app.use(body_parser_1.default.json());
+function getQueues() {
+    return __awaiter(this, void 0, void 0, function* () {
+        try {
+            const response = yield axios_1.default.get("http://192.168.1.3:15672/api/queues", {
+                auth: {
+                    username: "guest", // Replace with your RabbitMQ username
+                    password: "guest", // Replace with your RabbitMQ password
+                },
+            });
+            const queuesArray = [];
+            response.data.forEach((queue) => {
+                queuesArray.push(queue.name);
+            });
+            return queuesArray;
+        }
+        catch (error) {
+            console.error("Error fetching queues:", error);
+        }
+    });
+}
 app.get("/", (req, res) => {
     res.send("Hello, World!");
 });
-app.post("/add_msg", (req, res) => {
+app.post("/add_msg", (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const message = req.body.message;
     console.log(message);
     if (!message) {
         return res.status(400).json({ error: "Missing message in request body" });
     }
-    const QUEUE_NAME = JSON.parse(message).queueName;
-    console.log(QUEUE_NAME);
+    let QUEUE_NAME;
+    QUEUE_NAME = JSON.parse(message).queueName;
+    const queues = yield getQueues();
+    if (queues && !queues.includes(QUEUE_NAME)) {
+        return res.status(404).json({ error: `Queue ${QUEUE_NAME} does not exist` });
+    }
     const connectionString = `amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@${RABBITMQ_HOST}:${RABBITMQ_PORT}${RABBITMQ_VHOST}`;
-    callback_api_1.default.connect(connectionString, (err, connection) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        connection.createChannel((err, channel) => {
+    try {
+        callback_api_1.default.connect(connectionString, (err, connection) => {
             if (err) {
-                connection.close();
                 return res.status(500).json({ error: err.message });
             }
-            channel.checkQueue(QUEUE_NAME, (err, ok) => {
+            connection.createChannel((err, channel) => {
                 if (err) {
                     connection.close();
-                    return res
-                        .status(404)
-                        .json({ error: `Queue ${QUEUE_NAME} does not exist` });
+                    return res.status(500).json({ error: err.message });
                 }
-                channel.sendToQueue(QUEUE_NAME, Buffer.from(message));
-                setTimeout(() => {
-                    connection.close();
-                    res.status(201).json({ message: "Message added successfully" });
-                }, 500);
+                channel.checkQueue(QUEUE_NAME, (err, ok) => {
+                    if (err) {
+                        connection.close();
+                        return res
+                            .status(404)
+                            .json({ error: `Queue ${QUEUE_NAME} does not exist` });
+                    }
+                    try {
+                        channel.sendToQueue(QUEUE_NAME, Buffer.from(message));
+                        setTimeout(() => {
+                            connection.close();
+                            res
+                                .status(201)
+                                .json({ message: "Message added successfully" });
+                        }, 500);
+                    }
+                    catch (e) {
+                        connection.close();
+                        return res
+                            .status(500)
+                            .json({ error: "Failed to send message" });
+                    }
+                });
             });
         });
-    });
-});
+    }
+    catch (error) {
+    }
+}));
 const PORT = 5000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
