@@ -7,12 +7,11 @@ const express_1 = __importDefault(require("express"));
 const body_parser_1 = __importDefault(require("body-parser"));
 const cors_1 = __importDefault(require("cors"));
 const callback_api_1 = __importDefault(require("amqplib/callback_api"));
-const RABBITMQ_HOST = "127.0.0.1"; // Replace with your RabbitMQ host
+const RABBITMQ_HOST = "192.168.1.3"; // Replace with your RabbitMQ host
 const RABBITMQ_PORT = 5672; // Default RabbitMQ port
 const RABBITMQ_VHOST = "/"; // Virtual host (usually '/')
 const RABBITMQ_USER = "guest"; // Replace with your username
 const RABBITMQ_PASSWORD = "guest"; // Replace with your password
-const QUEUE_NAME = "job"; // Name of the queue to use
 const app = (0, express_1.default)();
 // Specify the allowed origins
 const allowedOrigins = [
@@ -38,6 +37,8 @@ app.post("/add_msg", (req, res) => {
     if (!message) {
         return res.status(400).json({ error: "Missing message in request body" });
     }
+    const QUEUE_NAME = JSON.parse(message).queueName;
+    console.log(QUEUE_NAME);
     const connectionString = `amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@${RABBITMQ_HOST}:${RABBITMQ_PORT}${RABBITMQ_VHOST}`;
     callback_api_1.default.connect(connectionString, (err, connection) => {
         if (err) {
@@ -48,12 +49,19 @@ app.post("/add_msg", (req, res) => {
                 connection.close();
                 return res.status(500).json({ error: err.message });
             }
-            channel.assertQueue(QUEUE_NAME, { durable: true });
-            channel.sendToQueue(QUEUE_NAME, Buffer.from(message));
-            setTimeout(() => {
-                connection.close();
-                res.status(201).json({ message: "Message added successfully" });
-            }, 500);
+            channel.checkQueue(QUEUE_NAME, (err, ok) => {
+                if (err) {
+                    connection.close();
+                    return res
+                        .status(404)
+                        .json({ error: `Queue ${QUEUE_NAME} does not exist` });
+                }
+                channel.sendToQueue(QUEUE_NAME, Buffer.from(message));
+                setTimeout(() => {
+                    connection.close();
+                    res.status(201).json({ message: "Message added successfully" });
+                }, 500);
+            });
         });
     });
 });
